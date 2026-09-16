@@ -1,0 +1,4 @@
+<?jelly escape-by-default='true'?>
+<div>
+  Adds label-based merge request discovery filtering to the native GitLab Branch Source plugin.
+</div>
