@@ -16,31 +16,69 @@ public class MergeRequestLabelFilterTraitTest {
 
     @Test
     public void includesMergeRequestWithConfiguredLabel() {
-        assertFalse(filterFor("Ready For Tests").isExcluded(requestWithLabel("Ready For Tests"), headFor(7)));
+        assertFalse(filterFor("Ready For Tests", null)
+                .isExcluded(requestWithLabels("Ready For Tests"), headFor(7)));
     }
 
     @Test
     public void excludesMergeRequestWithoutConfiguredLabel() {
-        assertTrue(filterFor("Ready For Tests").isExcluded(requestWithLabel("In Progress"), headFor(7)));
+        assertTrue(filterFor("Ready For Tests", null)
+                .isExcluded(requestWithLabels("In Progress"), headFor(7)));
     }
 
     @Test
-    public void excludesMergeRequestWithoutLabels() {
+    public void includesMergeRequestMatchingAnyConfiguredLabel() {
+        assertFalse(filterFor("Ready For Tests,Approved", null)
+                .isExcluded(requestWithLabels("Approved"), headFor(7)));
+    }
+
+    @Test
+    public void includesMergeRequestMatchingWildcardPattern() {
+        assertFalse(filterFor("Ready *", null)
+                .isExcluded(requestWithLabels("Ready For Tests"), headFor(7)));
+    }
+
+    @Test
+    public void excludesMergeRequestMatchingExcludePattern() {
+        assertTrue(filterFor("*", "Do Not Build")
+                .isExcluded(requestWithLabels("Do Not Build"), headFor(7)));
+    }
+
+    @Test
+    public void excludePatternTakesPrecedenceOverIncludePattern() {
+        assertTrue(filterFor("Ready *", "Ready For Review")
+                .isExcluded(requestWithLabels("Ready For Review"), headFor(7)));
+    }
+
+    @Test
+    public void excludesMergeRequestWithoutLabelsWhenIncludeIsConfigured() {
+        MergeRequest mergeRequest = mock(MergeRequest.class);
+        when(mergeRequest.getIid()).thenReturn(7L);
+        when(mergeRequest.getLabels()).thenReturn(null);
+
+        assertTrue(filterFor("Ready For Tests", null)
+                .isExcluded(requestWith(mergeRequest), headFor(7)));
+    }
+
+    @Test
+    public void includesMergeRequestWithoutLabelsWhenOnlyExcludeIsConfigured() {
         MergeRequest mergeRequest = mock(MergeRequest.class);
         when(mergeRequest.getIid()).thenReturn(7L);
         when(mergeRequest.getLabels()).thenReturn(Collections.emptyList());
 
-        assertTrue(filterFor("Ready For Tests").isExcluded(requestWith(mergeRequest), headFor(7)));
+        assertFalse(filterFor(null, "Do Not Build")
+                .isExcluded(requestWith(mergeRequest), headFor(7)));
     }
 
-    private MergeRequestLabelFilterTrait.MergeRequestLabelFilter filterFor(String label) {
-        return new MergeRequestLabelFilterTrait.MergeRequestLabelFilter(label);
+    private MergeRequestLabelFilterTrait.MergeRequestLabelFilter filterFor(
+            String includeLabels, String excludeLabels) {
+        return new MergeRequestLabelFilterTrait.MergeRequestLabelFilter(includeLabels, excludeLabels);
     }
 
-    private GitLabSCMSourceRequest requestWithLabel(String title) {
+    private GitLabSCMSourceRequest requestWithLabels(String... labels) {
         MergeRequest mergeRequest = mock(MergeRequest.class);
         when(mergeRequest.getIid()).thenReturn(7L);
-        when(mergeRequest.getLabels()).thenReturn(List.of(title));
+        when(mergeRequest.getLabels()).thenReturn(List.of(labels));
         return requestWith(mergeRequest);
     }
 
